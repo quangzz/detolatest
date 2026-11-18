@@ -1,0 +1,27 @@
+# Environment & Secrets
+.env
+.env.local
+.env.production
+.auth/
+
+# Python, uv & pytest
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Auto-generated runtime jobs, caches & test media (AGENTS.md Section 2)
+jobs/*
+!jobs/.gitkeep
+data/media_cache/
+data/snapshots/fixture_*.json
+cache/
+*.mp4
+*.webm
+*.part
+*.ytdl
+
+# OS
+.DS_Store
+Thumbs.db
