@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -107,13 +108,20 @@ class JobLogger:
 
     @staticmethod
     def _write_json(path: Path, payload: Any) -> None:
-        """Ghi file JSON theo kiểu atomic tạm thời để tránh hỏng dữ liệu khi ngắt điện/crash."""
-        tmp_path = path.with_suffix(path.suffix + ".tmp")
-        tmp_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        tmp_path.replace(path)
+        """Ghi file JSON nguyên tử có cơ chế thử lại ngắn khi đụng khóa đọc đồng thời trên Windows NTFS."""
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        tmp_path = path.with_name(f"{path.name}.{threading.get_ident()}.tmp")
+        tmp_path.write_text(content, encoding="utf-8")
+        for attempt in range(6):
+            try:
+                tmp_path.replace(path)
+                return
+            except PermissionError:
+                if attempt < 5:
+                    time.sleep(0.015 * (attempt + 1))
+                else:
+                    tmp_path.unlink(missing_ok=True)
+                    path.write_text(content, encoding="utf-8")
 
     def log(self, level: str, message: str, also_stderr: bool = False) -> None:
         """Append dòng log đã được che khóa bí mật vào log.txt ngay lập tức."""

@@ -69,6 +69,11 @@ def _build_parser() -> argparse.ArgumentParser:
     # Lệnh generate-fixture: Tạo dữ liệu mẫu kiểm thử
     sub.add_parser("generate-fixture", help="Tạo tập fixture 32 KOC mẫu tại data/snapshots/")
 
+    # Lệnh serve: Khởi chạy FastAPI Backend phục vụ giao diện Web chuẩn SEO
+    srv_p = sub.add_parser("serve", help="Khởi chạy máy chủ FastAPI cho giao diện Web Console")
+    srv_p.add_argument("--host", type=str, default="127.0.0.1", help="Địa chỉ lắng nghe")
+    srv_p.add_argument("--port", type=int, default=8000, help="Cổng lắng nghe (mặc định 8000)")
+
     return parser
 
 
@@ -82,6 +87,15 @@ def main() -> None:
     if args.command == "generate-fixture":
         path = generate_test_fixture()
         console.print(f"[green]✓ Đã sinh file fixture mẫu tại:[/green] `{path}`")
+        return
+
+    if args.command == "serve":
+        import uvicorn
+
+        console.print(
+            f"[bold cyan]🚀 Đang khởi động DETOLA FastAPI Server tại http://{args.host}:{args.port}[/bold cyan]"
+        )
+        uvicorn.run("src.api.server:app", host=args.host, port=args.port, reload=False)
         return
 
     if args.command == "inspect-input":
