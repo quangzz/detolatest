@@ -36,7 +36,21 @@ Copy-Item .env.example .env
 
 ## 3. Hướng Dẫn Chạy Demo & Kiểm Thử
 
-### Cách 1: Chạy kiểm thử toàn trình Offline (Không tốn tiền API)
+### Cách 0: Chạy Giao Diện Web Console Chuẩn SEO (Khuyến nghị để Test trực quan)
+Mở 2 cửa sổ terminal tại `E:\detola`:
+
+```powershell
+# Terminal 1: Bật máy chủ FastAPI Backend (cổng 8000)
+cd E:\detola
+uv run detola serve --port 8000
+
+# Terminal 2: Bật giao diện React 19 + Tailwind v4 (cổng 5173)
+cd E:\detola\frontend
+npm run dev
+```
+Sau đó mở `http://127.0.0.1:5173` để nhập đề bài, tải lên file Kalodata, theo dõi tiến độ 5 tầng realtime, bấm thử **Giả lập sập Stage 3 -> Resume (0 token lặp)** và phóng to lưới **Contact Sheet 3x3**.
+
+### Cách 1: Chạy kiểm thử toàn trình qua CLI (Không tốn tiền API)
 ```powershell
 uv run detola run --dry-run --job-id demo_dryrun
 ```

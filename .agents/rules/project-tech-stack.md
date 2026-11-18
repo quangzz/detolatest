@@ -11,7 +11,9 @@
 - **Data Validation & Config:** `pydantic>=2.10`, `pydantic-settings>=2.7`, `python-dotenv`
 - **Media & Ingestion:** `yt-dlp` (TikTok public metadata, CC subtitles, low-res MP4 stream), `ffmpeg` 8.1 CLI + `Pillow` (Timestamped 3x3 Keyframe Contact Sheet), `openpyxl` (CSV/XLSX Kalodata fallback)
 - **CLI & Resilience:** `rich` (progress & terminal tables), `tenacity` (retry with exponential backoff), `sqlite3` (WAL-mode checkpointing & entity caching)
-- **Frontend / Report Viewer:** Self-contained single-file interactive HTML5 + Tailwind CDN report (`jobs/<job_id>/report.html`) đọc trực tiếp dữ liệu kết quả & hiển thị ảnh Contact Sheet.
+- **Backend Web API:** `FastAPI` + `Uvicorn` (`src/api/server.py`) với CORS whitelist chặt chẽ, DTO Pydantic validation, phân trang `<= 50` và background job runner.
+- **Frontend Web Console (Chuẩn SEO & URAH):** `React 19` + `Vite` + `TypeScript` + `Tailwind CSS v4` + `lucide-react` tại `E:\detola\frontend\`, cấu hình CSS-first trong `src/styles/{fonts.css, theme.css, index.css}` kèm JSON-LD, OpenGraph, `robots.txt`, `sitemap.xml` và Semantic HTML5.
+- **Static Report Artifact:** Self-contained HTML5 report (`jobs/<job_id>/report.html`) xuất kèm cho mỗi job.
 
 ## 2. Folder Structure Thực Tế
 ```text

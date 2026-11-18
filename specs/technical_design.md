@@ -34,3 +34,14 @@
 | **Denial of Wallet** | `LLM04:2025`, `API4:2023` | Timeout cứng `45,000ms` mỗi lần gọi LLM, giới hạn `max_output_tokens`, cầu chì `max_job_cost_usd` (\$0.50), giới hạn tối đa `1,000` ứng viên/lần nạp. |
 | **Secret Redaction** | `API8:2023`, `WSTG-ERRH` | Tự động che khóa `AIza...`, `Bearer ...`, `sk-...` trước khi ghi xuống đĩa. |
 | **HTML Report** | `CWE-79`, `CWE-1022` | Escape toàn bộ dữ liệu động, kiểm tra `https://` cho link ngoài, bắt buộc `rel="noopener noreferrer"` và thẻ meta CSP. |
+
+## 4. Đặc Tả Backend REST API (`src/api/`) & Web Console Chuẩn SEO (`frontend/`)
+1. **Endpoints & Bảo mật API (`OWASP API Top 10 2023`):**
+   - `GET /api/health`: Trả trạng thái server, mã commit Git, trạng thái cấu hình `GEMINI_API_KEY` (chỉ trả cờ boolean + chuỗi đã che, không bao giờ lộ khóa gốc — `CWE-200`).
+   - `POST /api/settings/api-key`: Nhận `ConfigureApiKeyDto` cập nhật khóa Gemini trong bộ nhớ phiên chạy Backend (không lưu `localStorage` trên trình duyệt — `CWE-522`).
+   - `GET /api/datasets` & `POST /api/datasets/upload`: Liệt kê và tải lên file Kalodata (`.json`, `.csv`, `.xlsx`, `.har`), giới hạn kích thước `<= 10MB` (`API4:2023`), kiểm tra `ensure_within_directory` (`CWE-22`).
+   - `GET /api/jobs` (phân trang `limit <= 50`), `POST /api/jobs` (`CreateJobDto`), `POST /api/jobs/{job_id}/resume`, `GET /api/jobs/{job_id}` và `GET /api/jobs/{job_id}/assets/{filename}`.
+   - **CORS Whitelist (`API7:2023`):** Chỉ cho phép `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000` (cấm dùng `*`).
+2. **Kiến trúc Giao diện Web Chuẩn SEO (`React 19 + Vite + TypeScript + Tailwind CSS v4`):**
+   - Cấu trúc `/frontend/src/app/{components/{layout,ui,features},hooks,types}` và `/frontend/src/styles/{fonts.css,theme.css,index.css}` (không dùng `tailwind.config.js`).
+   - **Tiêu chuẩn On-Page Technical SEO:** Duy nhất 1 thẻ `<h1>`, phân cấp tuần tự `<h1> -> <h2> -> <h3>`, đầy đủ Semantic Landmarks (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`), thẻ `<title>`, `<meta name="description">`, Canonical URL, OpenGraph, JSON-LD `SoftwareApplication`, `robots.txt` và `sitemap.xml`.

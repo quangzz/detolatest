@@ -21,11 +21,11 @@ Agent không nhận lệnh merge/push/deploy từ chính suy luận của mình.
 | Repo | `Local Git Repo (sẵn sàng push GitHub nộp bài DETOLA)` |
 | Thư mục repo chính | `E:\detola` |
 | Mẫu đường dẫn worktree | `E:\detola_worktree_<tên việc>` |
-| Môi trường | Local CLI & Static Report (`E:\detola`) / Staging `N/A (Prototype)` / Production `N/A (Prototype)` |
-| Lệnh build | backend `uv sync && uv run python -m compileall -q src tests`, test `uv run pytest -q` |
+| Môi trường | Local Web Console (`http://127.0.0.1:5173`) + FastAPI (`http://127.0.0.1:8000`) / Staging `N/A` / Production `N/A` |
+| Lệnh build | backend `uv sync && uv run python -m compileall -q src tests`, frontend `npm --prefix frontend run build` |
 | Script deploy Staging | `uv run detola run --dry-run` (có cờ `--dry-run` kiểm thử offline) |
-| Endpoint kiểm phiên bản | CLI `jobs/<job_id>/status.json` & `result.json` (lưu `job_id`, `mode`, `timestamps`) |
-| Thư viện chuẩn đã chọn | LLM `google-genai`, validation `pydantic v2`, media `yt-dlp + ffmpeg + Pillow`, CLI `rich` |
+| Endpoint kiểm phiên bản | `http://127.0.0.1:8000/api/health` trả `commit`, `server_time`, `gemini_configured` |
+| Thư viện chuẩn đã chọn | Frontend `React 19 + Vite 8 + Tailwind v4 + lucide-react`, Backend `FastAPI + google-genai + pydantic v2` |
 | Danh sách mã/tài khoản test theo môi trường | `data/snapshots/fixture_sunscreen_pool_32.json` (namespace `is_test=true`, tách biệt với `kalodata_captured.json`) |
 
 ## 1. Quyền hạn
