@@ -84,9 +84,7 @@ export function App() {
   const { jobDetail, pollError } = useJobPoller({
     activeJobId,
     fetchJobDetail,
-    onJobSettled: () => {
-      void refreshSidebarAndHealth();
-    },
+    onJobSettled: refreshSidebarAndHealth,
   });
 
   const handleUploadDataset = async (file: File): Promise<DatasetItem> => {
