@@ -53,19 +53,26 @@ class TikTokVideoMeta(BaseModel):
     shares: int = 0
     published_at: str = ""
     hashtags: List[str] = Field(default_factory=list)
+    revenue_vnd: int = 0
+    ads_roas: float = 0.0
+    is_ad: bool = False
+    is_ai_video: bool = False
     transcript_text: str = ""
     transcript_source: str = "none"  # tiktok_cc | caption_fallback | mock
     contact_sheet_path: str = ""
 
 
 class KocCandidate(BaseModel):
-    """Hồ sơ KOC chuẩn hóa từ Kalodata kết hợp làm giàu từ TikTok."""
+    """Hồ sơ KOC chuẩn hóa từ Kalodata Open API v1 kết hợp làm giàu từ TikTok."""
 
     koc_id: str = Field(description="Định danh duy nhất (ưu tiên TikTok handle viết thường không @)")
+    kalodata_creator_id: str = Field(default="", description="Mã creator_id trên Kalodata Open API")
     handle: str = Field(description="TikTok handle không bao gồm ký tự @")
     display_name: str = ""
     profile_url: str = ""
+    creator_status: str = ""  # INDEPENDENT | BELONGED_TO_SELLER
     category: str = "Beauty & Personal Care"
+    sub_categories: List[str] = Field(default_factory=list)
     bio: str = ""
     followers: int = 0
     revenue_30d_vnd: int = 0

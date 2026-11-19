@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+import httpx
 import yt_dlp
 
 from src.config import SUBS_CACHE_DIR, VIDEOS_CACHE_DIR, ensure_directories
@@ -18,6 +19,9 @@ from src.core.security import (
     validate_safe_tiktok_url,
 )
 from src.models.schemas import KocCandidate, TikTokVideoMeta
+
+if TYPE_CHECKING:
+    from src.ingestion.kalodata_openapi_client import KalodataOpenApiClient
 
 
 def parse_vtt_to_compact_transcript(vtt_content: str, max_chars: int = 1800) -> str:
@@ -57,11 +61,15 @@ class TikTokEnricher:
         job_logger: JobLogger,
         global_cache: GlobalEntityCache,
         dry_run: bool = False,
+        kalodata_client: Optional["KalodataOpenApiClient"] = None,
+        use_kalodata_video_url_fallback: bool = False,
     ) -> None:
         ensure_directories()
         self.job_logger = job_logger
         self.global_cache = global_cache
         self.dry_run = dry_run
+        self.kalodata_client = kalodata_client
+        self.use_kalodata_video_url_fallback = use_kalodata_video_url_fallback
 
     def enrich_candidate_videos(
         self,
@@ -272,5 +280,24 @@ class TikTokEnricher:
                     "latency_ms": elapsed_ms,
                 }
             )
-            self.job_logger.info(f"[WARN] Không tải được file MP4 {video.video_id}, chuyển sang fallback storyboard: {exc}")
+            self.job_logger.info(f"[WARN] Không tải được file MP4 {video.video_id} qua yt-dlp: {exc}")
+            # Nếu bật chế độ fallback qua Kalodata /tiktok/video/url (0.5 credit), tự động tải từ CloudFront CDN ký số
+            if (
+                self.use_kalodata_video_url_fallback
+                and self.kalodata_client is not None
+                and self.kalodata_client.is_configured()
+            ):
+                try:
+                    signed_url = self.kalodata_client.get_video_signed_url(video.video_id)
+                    if signed_url:
+                        with httpx.Client(timeout=25.0) as http_cli:
+                            resp = http_cli.get(signed_url)
+                            if resp.status_code == 200 and len(resp.content) > 10_000:
+                                mp4_path.write_bytes(resp.content)
+                                self.job_logger.info(
+                                    f"[KALODATA] Đã tải thành công MP4 {video.video_id} qua /tiktok/video/url fallback."
+                                )
+                                return mp4_path
+                except Exception as fb_exc:
+                    self.job_logger.info(f"[WARN] Fallback /tiktok/video/url không thành công: {fb_exc}")
             return None

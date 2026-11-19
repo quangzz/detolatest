@@ -9,6 +9,7 @@ from src.core.checkpoint import CheckpointStore, GlobalEntityCache
 from src.core.job_logger import JobLogger
 from src.core.llm_gateway import GeminiGateway
 from src.core.security import sanitize_untrusted_text, wrap_untrusted_xml
+from src.ingestion.kalodata_openapi_client import KalodataOpenApiClient
 from src.ingestion.tiktok_enricher import TikTokEnricher
 from src.media.contact_sheet import build_contact_sheet_3x3
 from src.models.schemas import (
@@ -128,6 +129,7 @@ def run_stage3_video_analysis(
     global_cache: GlobalEntityCache,
     job_logger: JobLogger,
     simulate_crash_after_kocs: Optional[int] = None,
+    kalodata_client: Optional[KalodataOpenApiClient] = None,
 ) -> List[KocFinalistDossier]:
     """Phân tích video cho danh sách Finalists, lưu checkpoint ngay sau từng KOC."""
     dossiers: List[KocFinalistDossier] = []
@@ -152,6 +154,8 @@ def run_stage3_video_analysis(
             raise SimulatedCrashError(msg)
 
         job_logger.info(f"[STAGE 3] ({idx}/{len(finalists)}) Đang phân tích video AI cho @{cand.handle}...")
+        if not gateway.dry_run and kalodata_client is not None and kalodata_client.is_configured():
+            kalodata_client.enrich_finalist_from_openapi(cand)
         enricher.enrich_candidate_videos(cand, max_recent_videos=6)
         chosen_videos = enricher.select_best_videos_for_analysis(
             cand,

@@ -57,6 +57,19 @@ class Settings(BaseSettings):
     )
 
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    kalodata_api_key: str = Field(default="", alias="KALODATA_API_KEY")
+    kalodata_base_url: str = Field(
+        default="https://www.kalodata.com/openapi/v1",
+        alias="KALODATA_BASE_URL",
+    )
+    kalodata_region: str = Field(default="VN", alias="KALODATA_REGION")
+    kalodata_language: str = Field(default="vi-VN", alias="KALODATA_LANGUAGE")
+    kalodata_currency: str = Field(default="VND", alias="KALODATA_CURRENCY")
+    kalodata_use_video_url_fallback: bool = Field(
+        default=False,
+        alias="KALODATA_USE_VIDEO_URL_FALLBACK",
+    )
+
     triage_model: str = Field(default="gemini-2.5-flash-lite", alias="GEMINI_TRIAGE_MODEL")
     multimodal_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MULTIMODAL_MODEL")
     portfolio_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_PORTFOLIO_MODEL")

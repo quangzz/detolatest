@@ -13,6 +13,7 @@ from src.core.checkpoint import CheckpointStore, GlobalEntityCache
 from src.core.job_logger import JobLogger
 from src.core.llm_gateway import GeminiGateway
 from src.ingestion.kalodata_loader import load_kalodata_candidates
+from src.ingestion.kalodata_openapi_client import KalodataOpenApiClient
 from src.ingestion.tiktok_enricher import TikTokEnricher
 from src.models.schemas import CampaignBrief
 from src.pipeline.stage0_brief import run_stage0_brief_parser
@@ -117,7 +118,18 @@ def execute_discovery_pipeline(
     run_start_ts = time.perf_counter()
 
     gateway = GeminiGateway(settings=settings, job_logger=job_logger, dry_run=dry_run)
-    enricher = TikTokEnricher(job_logger=job_logger, global_cache=global_cache, dry_run=dry_run)
+    kalodata_client = KalodataOpenApiClient(
+        settings=settings,
+        job_logger=job_logger,
+        global_cache=global_cache,
+    )
+    enricher = TikTokEnricher(
+        job_logger=job_logger,
+        global_cache=global_cache,
+        dry_run=dry_run,
+        kalodata_client=kalodata_client,
+        use_kalodata_video_url_fallback=settings.kalodata_use_video_url_fallback,
+    )
 
     try:
         job_logger.update_status(status="RUNNING", current_stage="ingestion")
@@ -188,6 +200,7 @@ def execute_discovery_pipeline(
             global_cache=global_cache,
             job_logger=job_logger,
             simulate_crash_after_kocs=simulate_crash_after_kocs,
+            kalodata_client=kalodata_client,
         )
         console.print(
             f"  [green]✓ Stage 3 (Multimodal Contact Sheet 3x3)[/green]: Hoàn tất phân tích hình ảnh & phụ đề cho [bold]{len(dossiers)}[/bold] Finalists"

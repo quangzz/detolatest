@@ -28,6 +28,8 @@ _SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_\-]{20,}"),
     re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{16,}"),
     re.compile(r"(?i)(gemini_api_key\s*=\s*)[^\s\"']+"),
+    re.compile(r"(?i)(kalodata_api_key\s*=\s*)[^\s\"']+"),
+    re.compile(r"(?i)(secret-key['\"\s:=]+)[A-Za-z0-9._\-]{12,}"),
 ]
 
 # Các cụm từ tiêm lệnh phổ biến trong bio/caption không tin cậy (LLM01:2025)
@@ -148,4 +150,29 @@ def redact_secrets(raw_text: str) -> str:
     masked = _SECRET_PATTERNS[1].sub("sk-[REDACTED_KEY]", masked)
     masked = _SECRET_PATTERNS[2].sub(r"\1[REDACTED_TOKEN]", masked)
     masked = _SECRET_PATTERNS[3].sub(r"\1[REDACTED_ENV]", masked)
+    masked = _SECRET_PATTERNS[4].sub(r"\1[REDACTED_ENV]", masked)
+    masked = _SECRET_PATTERNS[5].sub(r"\1[REDACTED_KALO_KEY]", masked)
     return masked
+
+
+def validate_safe_signed_cdn_url(url: str, resolve_dns: bool = False) -> str:
+    """Kiểm định URL video ký số trả về từ Kalodata /tiktok/video/url (*.cloudfront.net) chống SSRF."""
+    raw = str(url or "").strip()
+    parsed = urlparse(raw)
+    if parsed.scheme.lower() != "https":
+        raise SecurityViolationError(f"Signed CDN URL phải dùng giao thức https://: {raw!r}")
+
+    host = (parsed.hostname or "").lower().strip(".")
+    if not host or (not host.endswith(".cloudfront.net") and host not in ALLOWED_TIKTOK_HOSTS):
+        raise SecurityViolationError(f"Host không thuộc CDN ký số được phép của Kalodata: {host!r}")
+
+    if resolve_dns:
+        try:
+            infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+            for info in infos:
+                _assert_public_ip(info[4][0])
+        except SecurityViolationError:
+            raise
+        except OSError:
+            pass
+    return raw

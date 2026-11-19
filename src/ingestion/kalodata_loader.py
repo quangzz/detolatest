@@ -80,12 +80,12 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
         raw,
         [
             "handle",
+            "creator_handle",
             "uniqueId",
             "unique_id",
             "tiktok_handle",
             "tiktokHandle",
             "username",
-            "creator_handle",
             "tài khoản",
             "id nhà sáng tạo",
             "nhà sáng tạo",
@@ -112,21 +112,30 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
     display_name = str(
         _pick_first(
             raw,
-            ["display_name", "nickname", "nickName", "name", "creator_name", "tên hiển thị"],
+            [
+                "display_name",
+                "creator_nickname",
+                "nickname",
+                "nickName",
+                "name",
+                "creator_name",
+                "tên hiển thị",
+            ],
         )
         or handle
     ).strip()
 
-    category = str(
-        _pick_first(
-            raw,
-            ["category", "categoryName", "main_category", "ngành hàng", "danh mục"],
-        )
-        or "Beauty & Personal Care"
-    ).strip()
+    cat_val = _pick_first(
+        raw,
+        ["category", "category_list", "categoryName", "main_category", "ngành hàng", "danh mục"],
+    )
+    if isinstance(cat_val, list) and cat_val:
+        category = str(cat_val[0]).strip()
+    else:
+        category = str(cat_val or "Beauty & Personal Care").strip()
 
     bio = str(
-        _pick_first(raw, ["bio", "signature", "description", "giới thiệu", "tiểu sử"]) or ""
+        _pick_first(raw, ["bio", "creator_bio", "signature", "description", "giới thiệu", "tiểu sử"]) or ""
     ).strip()
 
     followers = int(
@@ -135,6 +144,7 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
                 raw,
                 [
                     "followers",
+                    "creator_followers",
                     "followerCount",
                     "follower_count",
                     "fans",
@@ -201,7 +211,15 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
         parse_human_number(
             _pick_first(
                 raw,
-                ["items_sold_30d", "saleCount", "items_sold", "unitsSold", "lượt bán", "số lượng bán"],
+                [
+                    "items_sold_30d",
+                    "sales_volumn",
+                    "saleCount",
+                    "items_sold",
+                    "unitsSold",
+                    "lượt bán",
+                    "số lượng bán",
+                ],
             )
         )
     )
@@ -209,10 +227,21 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
         parse_human_number(
             _pick_first(
                 raw,
-                ["avg_video_views", "avgViews", "avgPlayCount", "lượt xem trung bình", "views trung bình"],
+                [
+                    "avg_video_views",
+                    "avgViews",
+                    "avgPlayCount",
+                    "lượt xem trung bình",
+                    "views trung bình",
+                ],
             )
         )
     )
+    if avg_views == 0:
+        content_views = int(parse_human_number(_pick_first(raw, ["content_views", "video_views"])))
+        if content_views > 0:
+            avg_views = max(1, content_views // 12)
+
     er = float(
         parse_human_number(
             _pick_first(
@@ -225,11 +254,11 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
         er = round(er / 100.0, 5)
 
     gpm_vnd = int(
-        parse_human_number(_pick_first(raw, ["gpm_vnd", "gpm", "videoGpm", "gpm video"]))
+        parse_human_number(_pick_first(raw, ["gpm_vnd", "video_gpm", "gpm", "videoGpm", "gpm video"]))
     )
     active_videos = int(
         parse_human_number(
-            _pick_first(raw, ["active_videos_30d", "videoCount", "videos_30d", "số lượng video"])
+            _pick_first(raw, ["active_videos_30d", "video_number", "videoCount", "videos_30d", "số lượng video"])
         )
     )
 
@@ -262,8 +291,11 @@ def _normalize_single_record(raw: Dict[str, Any]) -> Optional[KocCandidate]:
             if isinstance(v, dict) and v.get("video_id") and v.get("url"):
                 videos.append(TikTokVideoMeta.model_validate(v))
 
+    kalodata_creator_id = str(_pick_first(raw, ["kalodata_creator_id", "creator_id", "creatorId"]) or "").strip()
+
     return KocCandidate(
         koc_id=handle,
+        kalodata_creator_id=kalodata_creator_id,
         handle=handle,
         display_name=display_name,
         profile_url=f"https://www.tiktok.com/@{handle}",

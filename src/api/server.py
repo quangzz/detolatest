@@ -13,8 +13,16 @@ from fastapi import FastAPI, File, HTTPException, Query, Request, Response, Uplo
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from src.api.schemas import ConfigureApiKeyDto, CreateJobDto, DatasetItemDto, ResumeJobDto
+from src.api.schemas import (
+    ConfigureApiKeyDto,
+    ConfigureKalodataKeyDto,
+    CreateJobDto,
+    DatasetItemDto,
+    ResumeJobDto,
+    SyncKalodataDto,
+)
 from src.config import JOBS_DIR, ROOT_DIR, SNAPSHOTS_DIR, Settings, ensure_directories
+from src.core.job_logger import JobLogger
 from src.core.security import (
     SecurityViolationError,
     ensure_within_directory,
@@ -22,6 +30,7 @@ from src.core.security import (
     sanitize_safe_id,
 )
 from src.ingestion.kalodata_loader import load_kalodata_candidates
+from src.ingestion.kalodata_openapi_client import KalodataApiError, KalodataOpenApiClient
 from src.ingestion.seed_fixture import generate_test_fixture
 from src.models.schemas import CampaignBrief
 from src.pipeline.orchestrator import execute_discovery_pipeline
@@ -41,7 +50,10 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # Trần 10MB chống cạn kiệt tài ngu
 ALLOWED_UPLOAD_SUFFIXES = {".json", ".csv", ".xlsx", ".har"}
 
 # Lưu khóa API tạm thời trong RAM của tiến trình Backend (không đụng file .env, không lộ xuống Client)
-_RUNTIME_STATE: Dict[str, str] = {"api_key_override": ""}
+_RUNTIME_STATE: Dict[str, str] = {
+    "api_key_override": "",
+    "kalodata_key_override": "",
+}
 _ACTIVE_JOBS_LOCK = threading.Lock()
 _ACTIVE_JOBS: set[str] = set()
 
@@ -77,14 +89,17 @@ def _build_effective_settings() -> Settings:
     override = _RUNTIME_STATE.get("api_key_override", "").strip()
     if override:
         settings.gemini_api_key = override
+    kalo_override = _RUNTIME_STATE.get("kalodata_key_override", "").strip()
+    if kalo_override:
+        settings.kalodata_api_key = kalo_override
     return settings
 
 
-def _mask_key_status(key: str) -> tuple[bool, str]:
-    """Kiểm tra trạng thái khóa Gemini và chỉ trả về chuỗi che an toàn."""
+def _mask_key_status(key: str, placeholder: str = "your_gemini_api_key_here") -> tuple[bool, str]:
+    """Kiểm tra trạng thái khóa API và chỉ trả về chuỗi che an toàn."""
     clean = (key or "").strip()
-    if not clean or clean == "your_gemini_api_key_here" or len(clean) < 15:
-        return False, "Chưa cấu hình (chỉ chạy được chế độ Dry-Run)"
+    if not clean or clean == placeholder or len(clean) < 10:
+        return False, "Chưa cấu hình"
     return True, f"{clean[:4]}••••••••{clean[-3:]}"
 
 
@@ -106,10 +121,14 @@ def _get_git_commit_short() -> str:
 
 @app.get("/api/health")
 def get_health() -> Dict[str, Any]:
-    """Kiểm tra sức khỏe hệ thống, phiên bản commit và trạng thái sẵn sàng của Gemini API."""
+    """Kiểm tra sức khỏe hệ thống, phiên bản commit và trạng thái sẵn sàng của Gemini + Kalodata Open API."""
     ensure_directories()
     settings = _build_effective_settings()
-    configured, masked = _mask_key_status(settings.gemini_api_key)
+    configured, masked = _mask_key_status(settings.gemini_api_key, "your_gemini_api_key_here")
+    kalo_configured, kalo_masked = _mask_key_status(
+        settings.kalodata_api_key,
+        "your_kalodata_secret_key_here",
+    )
     return {
         "status": "ok",
         "service": "detola-koc-discovery",
@@ -117,6 +136,9 @@ def get_health() -> Dict[str, Any]:
         "server_time": datetime.now(timezone.utc).isoformat(),
         "gemini_configured": configured,
         "gemini_key_masked": masked,
+        "kalodata_configured": kalo_configured,
+        "kalodata_key_masked": kalo_masked,
+        "kalodata_region": settings.kalodata_region,
         "models": {
             "triage": settings.triage_model,
             "multimodal": settings.multimodal_model,
@@ -130,11 +152,87 @@ def set_runtime_api_key(dto: ConfigureApiKeyDto) -> Dict[str, Any]:
     """Cập nhật khóa Gemini trong bộ nhớ phiên chạy Backend (không lưu localStorage phía Client)."""
     clean_key = dto.api_key.strip()
     _RUNTIME_STATE["api_key_override"] = clean_key
-    configured, masked = _mask_key_status(clean_key)
+    configured, masked = _mask_key_status(clean_key, "your_gemini_api_key_here")
     return {
         "configured": configured,
         "gemini_key_masked": masked,
         "message": "Đã nạp khóa Gemini API vào phiên chạy Backend thành công.",
+    }
+
+
+@app.post("/api/settings/kalodata-key")
+def set_runtime_kalodata_key(dto: ConfigureKalodataKeyDto) -> Dict[str, Any]:
+    """Cập nhật khóa secret-key của Kalodata Open API trong RAM Backend và kiểm tra số dư (0 credit)."""
+    clean_key = dto.secret_key.strip()
+    _RUNTIME_STATE["kalodata_key_override"] = clean_key
+    settings = _build_effective_settings()
+    configured, masked = _mask_key_status(clean_key, "your_kalodata_secret_key_here")
+
+    balance_info: Optional[Dict[str, Any]] = None
+    verify_note = "Đã lưu khóa secret-key vào RAM Backend."
+    try:
+        client = KalodataOpenApiClient(settings=settings)
+        balance_info = client.get_credit_balance()
+        verify_note = "Đã xác thực thành công với Kalodata Open API (/credit/balance — 0 credit)!"
+    except Exception as exc:
+        verify_note = f"Đã lưu khóa vào RAM (lưu ý khi kiểm tra /credit/balance: {exc})"
+
+    return {
+        "configured": configured,
+        "kalodata_key_masked": masked,
+        "balance": balance_info,
+        "message": verify_note,
+    }
+
+
+@app.get("/api/kalodata/balance")
+def check_kalodata_balance() -> Dict[str, Any]:
+    """Kiểm tra số dư credit Kalodata Open API (miễn phí 0 credit)."""
+    settings = _build_effective_settings()
+    client = KalodataOpenApiClient(settings=settings)
+    if not client.is_configured():
+        raise HTTPException(status_code=400, detail="Chưa cấu hình khóa secret-key của Kalodata Open API.")
+    try:
+        data = client.get_credit_balance()
+        return {"status": "ok", "balance": data}
+    except KalodataApiError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/kalodata/sync")
+def sync_kalodata_creators(dto: SyncKalodataDto) -> Dict[str, Any]:
+    """Gọi trực tiếp POST /tiktok/creator/rank từ Kalodata Open API v1 và lưu thành dataset mới."""
+    settings = _build_effective_settings()
+    client = KalodataOpenApiClient(settings=settings)
+    if not client.is_configured():
+        raise HTTPException(
+            status_code=400,
+            detail="Vui lòng bấm nút Cấu hình Kalodata Key để nhập secret-key trước khi đồng bộ trực tiếp.",
+        )
+
+    ctype = "" if dto.creator_type == "ALL" else dto.creator_type
+    try:
+        out_path, candidates = client.sync_creators_to_snapshot(
+            keyword=dto.keyword,
+            followers_range=dto.followers_range,
+            creator_type=ctype,
+            date_range=dto.date_range,
+            total_limit=dto.total_limit,
+        )
+    except KalodataApiError as exc:
+        raise HTTPException(status_code=400, detail=f"Kalodata Open API báo lỗi: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Không thể kết nối Kalodata Open API: {exc}") from exc
+
+    return {
+        "filename": out_path.name,
+        "koc_count": len(candidates),
+        "estimated_credits_used": client.total_credits_estimated,
+        "sample_handles": [f"@{c.handle}" for c in candidates[:5]],
+        "message": (
+            f"Đã kéo thành công {len(candidates)} KOC từ Kalodata Open API v1 "
+            f"(ước tính chỉ tốn {client.total_credits_estimated} credit)!"
+        ),
     }
 
 
@@ -269,6 +367,9 @@ def create_discovery_job(dto: CreateJobDto) -> Dict[str, Any]:
             raise HTTPException(status_code=404, detail=f"Không tìm thấy tập dữ liệu: {safe_ds_name}")
 
     job_id = generate_secure_job_id("webjob")
+    # Khởi tạo status.json đồng bộ trước khi trả HTTP 202 để Client poll tức thì không bị 404
+    JobLogger(job_id=job_id, resume=False)
+
     brief = CampaignBrief(
         brand_category=dto.brand_category,
         product_name=dto.product_name,

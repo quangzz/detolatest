@@ -11,6 +11,7 @@ from rich.table import Table
 
 from src.config import SNAPSHOTS_DIR, Settings, ensure_directories
 from src.ingestion.kalodata_loader import load_kalodata_candidates
+from src.ingestion.kalodata_openapi_client import KalodataOpenApiClient
 from src.ingestion.seed_fixture import generate_test_fixture
 from src.models.schemas import CampaignBrief
 from src.pipeline.orchestrator import execute_discovery_pipeline
@@ -69,6 +70,23 @@ def _build_parser() -> argparse.ArgumentParser:
     # Lệnh generate-fixture: Tạo dữ liệu mẫu kiểm thử
     sub.add_parser("generate-fixture", help="Tạo tập fixture 32 KOC mẫu tại data/snapshots/")
 
+    # Lệnh kalodata-balance: Kiểm tra số dư credit qua GET /credit/balance (0 credit)
+    sub.add_parser("kalodata-balance", help="Truy vấn số dư credit Kalodata Open API (miễn phí 0 credit)")
+
+    # Lệnh sync-kalodata: Kéo danh sách KOC trực tiếp từ POST /tiktok/creator/rank
+    sync_p = sub.add_parser("sync-kalodata", help="Đồng bộ danh sách KOC từ Kalodata Open API v1 về snapshots")
+    sync_p.add_argument("--keyword", type=str, default="kem chống nắng", help="Từ khóa tìm kiếm KOC")
+    sync_p.add_argument("--followers", type=str, default="10000-200000", help="Khoảng follower (VD: 10000-200000)")
+    sync_p.add_argument(
+        "--creator-type",
+        type=str,
+        default="INDEPENDENT",
+        choices=["INDEPENDENT", "BELONGED_TO_SELLER", "ALL"],
+        help="Phân loại KOC độc lập hay thuộc Shop",
+    )
+    sync_p.add_argument("--date-range", type=str, default="last30Day", help="Khoảng thời gian (last7Day, last30Day)")
+    sync_p.add_argument("--limit", type=int, default=50, help="Số lượng KOC tối đa cần lấy (1 - 500)")
+
     # Lệnh serve: Khởi chạy FastAPI Backend phục vụ giao diện Web chuẩn SEO
     srv_p = sub.add_parser("serve", help="Khởi chạy máy chủ FastAPI cho giao diện Web Console")
     srv_p.add_argument("--host", type=str, default="127.0.0.1", help="Địa chỉ lắng nghe")
@@ -87,6 +105,30 @@ def main() -> None:
     if args.command == "generate-fixture":
         path = generate_test_fixture()
         console.print(f"[green]✓ Đã sinh file fixture mẫu tại:[/green] `{path}`")
+        return
+
+    if args.command == "kalodata-balance":
+        client = KalodataOpenApiClient(settings=settings)
+        balance = client.get_credit_balance()
+        console.print("[bold green]✓ Kết nối Kalodata Open API v1 thành công![/bold green]")
+        console.print(balance)
+        return
+
+    if args.command == "sync-kalodata":
+        client = KalodataOpenApiClient(settings=settings)
+        ctype = "" if args.creator_type == "ALL" else args.creator_type
+        out_path, cands = client.sync_creators_to_snapshot(
+            keyword=args.keyword,
+            followers_range=args.followers,
+            creator_type=ctype,
+            date_range=args.date_range,
+            total_limit=args.limit,
+        )
+        console.print(
+            f"[bold green]✓ Đã đồng bộ {len(cands)} KOC từ Kalodata Open API v1![/bold green] "
+            f"(Credit ước tính: [bold]{client.total_credits_estimated}[/bold])\n"
+            f"  📁 Đã lưu tại: `{out_path}`"
+        )
         return
 
     if args.command == "serve":

@@ -14,6 +14,26 @@ class ConfigureApiKeyDto(BaseModel):
     api_key: str = Field(min_length=15, max_length=128, description="Khóa Google AI Studio Gemini API")
 
 
+class ConfigureKalodataKeyDto(BaseModel):
+    """DTO cập nhật khóa secret-key của Kalodata Open API trong bộ nhớ phiên chạy Backend."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    secret_key: str = Field(min_length=10, max_length=160, description="Khóa secret-key lấy tại Kalodata Open Center")
+
+
+class SyncKalodataDto(BaseModel):
+    """DTO đồng bộ danh sách KOC trực tiếp từ POST /tiktok/creator/rank."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    keyword: str = Field(default="kem chống nắng", max_length=100)
+    followers_range: str = Field(default="10000-200000", max_length=40)
+    creator_type: str = Field(default="INDEPENDENT", pattern=r"^(INDEPENDENT|BELONGED_TO_SELLER|ALL)$")
+    date_range: str = Field(default="last30Day", pattern=r"^(lastDay|last7Day|last30Day)$")
+    total_limit: int = Field(default=50, ge=1, le=200)
+
+
 class CreateJobDto(BaseModel):
     """DTO khởi tạo phiên chạy nghiên cứu & đề xuất KOC."""
 
