@@ -5,6 +5,8 @@ import type {
   HealthStatus,
   JobDetailResponse,
   JobSummaryItem,
+  SyncKalodataPayload,
+  SyncKalodataResponse,
 } from '../types/discovery';
 
 /** Chuyển đổi lỗi HTTP/mạng sang thông báo tiếng Việt thân thiện với người dùng. */
@@ -64,6 +66,34 @@ export function useDiscoveryApi() {
     []
   );
 
+  const updateSessionKalodataKey = useCallback(
+    async (
+      secretKey: string
+    ): Promise<{ configured: boolean; kalodata_key_masked: string; balance?: Record<string, unknown>; message: string }> => {
+      const resp = await fetch('/api/settings/kalodata-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret_key: secretKey }),
+      });
+      return parseApiResponse<{
+        configured: boolean;
+        kalodata_key_masked: string;
+        balance?: Record<string, unknown>;
+        message: string;
+      }>(resp);
+    },
+    []
+  );
+
+  const syncKalodataCreators = useCallback(async (payload: SyncKalodataPayload): Promise<SyncKalodataResponse> => {
+    const resp = await fetch('/api/kalodata/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return parseApiResponse<SyncKalodataResponse>(resp);
+  }, []);
+
   const fetchJobs = useCallback(async (): Promise<JobSummaryItem[]> => {
     const resp = await fetch('/api/jobs?limit=25');
     return parseApiResponse<JobSummaryItem[]>(resp);
@@ -97,6 +127,8 @@ export function useDiscoveryApi() {
     fetchDatasets,
     uploadDataset,
     updateSessionApiKey,
+    updateSessionKalodataKey,
+    syncKalodataCreators,
     fetchJobs,
     fetchJobDetail,
     startJob,

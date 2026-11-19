@@ -7,6 +7,9 @@ export interface HealthStatus {
   server_time: string;
   gemini_configured: boolean;
   gemini_key_masked: string;
+  kalodata_configured: boolean;
+  kalodata_key_masked: string;
+  kalodata_region: string;
   models: {
     triage: string;
     multimodal: string;
@@ -20,6 +23,22 @@ export interface DatasetItem {
   is_test: boolean;
   size_bytes: number;
   sample_handles: string[];
+}
+
+export interface SyncKalodataPayload {
+  keyword: string;
+  followers_range: string;
+  creator_type: 'INDEPENDENT' | 'BELONGED_TO_SELLER' | 'ALL';
+  date_range: 'lastDay' | 'last7Day' | 'last30Day';
+  total_limit: number;
+}
+
+export interface SyncKalodataResponse {
+  filename: string;
+  koc_count: number;
+  estimated_credits_used: number;
+  sample_handles: string[];
+  message: string;
 }
 
 export interface CreateJobPayload {

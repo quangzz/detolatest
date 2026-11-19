@@ -1,14 +1,16 @@
-import { KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
+import { Database, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
 import type { HealthStatus } from '../../types/discovery';
 
 interface HeaderProps {
   health: HealthStatus | null;
   onOpenApiKeyModal: () => void;
+  onOpenKalodataKeyModal: () => void;
 }
 
 /** Thanh tiêu đề Semantic <header> & <nav> chuẩn SEO và Accessibility. */
-export function Header({ health, onOpenApiKeyModal }: HeaderProps) {
+export function Header({ health, onOpenApiKeyModal, onOpenKalodataKeyModal }: HeaderProps) {
   const isLiveReady = Boolean(health?.gemini_configured);
+  const isKalodataReady = Boolean(health?.kalodata_configured);
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
@@ -59,6 +61,19 @@ export function Header({ health, onOpenApiKeyModal }: HeaderProps) {
             <ShieldCheck className="h-3.5 w-3.5" />
             OWASP Hardened
           </span>
+
+          <button
+            type="button"
+            onClick={onOpenKalodataKeyModal}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition focus:ring-2 focus:ring-sky-400 focus:outline-none ${
+              isKalodataReady
+                ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                : 'border-sky-500/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
+            }`}
+          >
+            <Database className="h-3.5 w-3.5" />
+            {isKalodataReady ? `Kalodata (${health?.kalodata_key_masked})` : 'Kalodata Open API Key'}
+          </button>
 
           <button
             type="button"

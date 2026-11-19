@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { CampaignForm } from './components/features/CampaignForm';
 import { FunnelStepper } from './components/features/FunnelStepper';
 import { JobHistorySidebar } from './components/features/JobHistorySidebar';
+import { KalodataSyncCard } from './components/features/KalodataSyncCard';
 import { KocPortfolioList } from './components/features/KocPortfolioList';
 import { TelemetryPanel } from './components/features/TelemetryPanel';
 import { Footer } from './components/layout/Footer';
@@ -18,6 +19,8 @@ export function App() {
     fetchDatasets,
     uploadDataset,
     updateSessionApiKey,
+    updateSessionKalodataKey,
+    syncKalodataCreators,
     fetchJobs,
     fetchJobDetail,
     startJob,
@@ -26,16 +29,21 @@ export function App() {
 
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [datasets, setDatasets] = useState<DatasetItem[]>([]);
+  const [preferredDataset, setPreferredDataset] = useState<string>('');
   const [jobs, setJobs] = useState<JobSummaryItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isResuming, setIsResuming] = useState<boolean>(false);
 
-  // Hộp thoại cấu hình khóa Gemini trong RAM phiên Backend (không lưu localStorage)
+  // Hộp thoại cấu hình khóa Gemini & Kalodata trong RAM phiên Backend (không lưu localStorage)
   const [isKeyModalOpen, setIsKeyModalOpen] = useState<boolean>(false);
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [keyStatusMsg, setKeyStatusMsg] = useState<string>('');
+
+  const [isKaloModalOpen, setIsKaloModalOpen] = useState<boolean>(false);
+  const [kaloKeyInput, setKaloKeyInput] = useState<string>('');
+  const [kaloStatusMsg, setKaloStatusMsg] = useState<string>('');
 
   // Hộp thoại phóng to ảnh Contact Sheet 3x3
   const [zoomImage, setZoomImage] = useState<{ url: string; caption: string } | null>(null);
@@ -127,9 +135,27 @@ export function App() {
     }
   };
 
+  const handleSaveKalodataKey = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!kaloKeyInput.trim()) return;
+    try {
+      const res = await updateSessionKalodataKey(kaloKeyInput.trim());
+      const balanceText = res.balance ? ` | Balance: ${JSON.stringify(res.balance)}` : '';
+      setKaloStatusMsg(`${res.message}${balanceText}`);
+      setKaloKeyInput('');
+      await refreshSidebarAndHealth();
+    } catch (err) {
+      setKaloStatusMsg(err instanceof Error ? err.message : 'Không thể cập nhật khóa Kalodata.');
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
-      <Header health={health} onOpenApiKeyModal={() => setIsKeyModalOpen(true)} />
+      <Header
+        health={health}
+        onOpenApiKeyModal={() => setIsKeyModalOpen(true)}
+        onOpenKalodataKeyModal={() => setIsKaloModalOpen(true)}
+      />
 
       <main id="main-content" className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
         <section className="mb-8 rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 p-6 sm:p-8">
@@ -163,8 +189,20 @@ export function App() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="space-y-6 lg:col-span-8 xl:col-span-9">
+            <KalodataSyncCard
+              kalodataConfigured={Boolean(health?.kalodata_configured)}
+              onOpenKalodataKeyModal={() => setIsKaloModalOpen(true)}
+              onSyncCreators={syncKalodataCreators}
+              onDatasetSynced={async (fname) => {
+                const updatedList = await fetchDatasets();
+                setDatasets(updatedList);
+                setPreferredDataset(fname);
+              }}
+            />
+
             <CampaignForm
               datasets={datasets}
+              preferredDatasetFilename={preferredDataset}
               geminiConfigured={Boolean(health?.gemini_configured)}
               isSubmitting={isSubmitting}
               onUploadDataset={handleUploadDataset}
@@ -237,6 +275,64 @@ export function App() {
               className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400"
             >
               Lưu vào Backend RAM
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={isKaloModalOpen}
+        title="Cấu Hình Khóa Kalodata Open API v1 (secret-key)"
+        onClose={() => {
+          setIsKaloModalOpen(false);
+          setKaloStatusMsg('');
+        }}
+        maxWidthClass="max-w-lg"
+      >
+        <form onSubmit={handleSaveKalodataKey} className="space-y-4">
+          <p className="text-xs leading-relaxed text-slate-300">
+            Lấy khóa <code className="text-sky-300">secret-key</code> tại{' '}
+            <a
+              href="https://www.kalodata.com/open-center"
+              target="_blank" rel="noopener noreferrer"
+              className="text-sky-400 underline hover:text-sky-300"
+            >
+              Kalodata Open Center
+            </a>{' '}
+            (Account → API Key). Khóa chỉ lưu trong bộ nhớ RAM của máy chủ FastAPI và tự kiểm tra{' '}
+            <code>GET /credit/balance</code> (0 credit).
+          </p>
+          <div>
+            <label htmlFor="kalodata-key-input" className="block text-xs font-semibold text-slate-300">
+              Kalodata secret-key
+            </label>
+            <input
+              id="kalodata-key-input"
+              type="password"
+              autoComplete="off"
+              placeholder="Nhập secret-key từ Open Center..."
+              value={kaloKeyInput}
+              onChange={(e) => setKaloKeyInput(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-sky-400 focus:outline-none"
+            />
+          </div>
+          {kaloStatusMsg && <p className="text-xs font-medium text-emerald-400">{kaloStatusMsg}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsKaloModalOpen(false);
+                setKaloStatusMsg('');
+              }}
+              className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+            >
+              Đóng
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-sky-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-sky-400"
+            >
+              Lưu & Kiểm tra Balance
             </button>
           </div>
         </form>

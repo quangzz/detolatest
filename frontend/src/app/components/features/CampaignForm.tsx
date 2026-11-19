@@ -1,9 +1,10 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Flame, Play, Upload } from 'lucide-react';
 import type { CreateJobPayload, DatasetItem } from '../../types/discovery';
 
 interface CampaignFormProps {
   datasets: DatasetItem[];
+  preferredDatasetFilename?: string;
   geminiConfigured: boolean;
   isSubmitting: boolean;
   onUploadDataset: (file: File) => Promise<DatasetItem>;
@@ -13,6 +14,7 @@ interface CampaignFormProps {
 /** Biểu mẫu thiết lập đề bài chiến dịch, tải dữ liệu Kalodata và bật cờ kiểm thử Crash Recovery. */
 export function CampaignForm({
   datasets,
+  preferredDatasetFilename,
   geminiConfigured,
   isSubmitting,
   onUploadDataset,
@@ -21,6 +23,12 @@ export function CampaignForm({
   const [selectedDataset, setSelectedDataset] = useState<string>(
     datasets[0]?.filename || 'fixture_sunscreen_pool_32.json'
   );
+
+  useEffect(() => {
+    if (preferredDatasetFilename) {
+      setSelectedDataset(preferredDatasetFilename);
+    }
+  }, [preferredDatasetFilename]);
   const [productName, setProductName] = useState<string>('Kem chống nắng');
   const [brandCategory, setBrandCategory] = useState<string>('Mỹ phẩm Việt Nam');
   const [targetAudience, setTargetAudience] = useState<string>('Nữ, 18–30 tuổi');
