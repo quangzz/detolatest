@@ -1,9 +1,9 @@
 # DETOLA — Benchmark Results & KOC Recommendations
 
-- **Job ID:** `webjob_20261118_042609_734392` (`DRY_RUN`)
+- **Job ID:** `pytest_crash_resume_suite` (`DRY_RUN`)
 - **Bài toán:** Tìm **5 KOC TikTok** quảng bá **Kem chống nắng** (Mỹ phẩm Việt Nam)
 - **Khách hàng mục tiêu:** Nữ, 18–30 tuổi | **Ngân sách tối đa:** 30,000,000 VNĐ
-- **Tổng thời gian xử lý:** `0.8 giây` | **Số lần Resume phục hồi:** `1`
+- **Tổng thời gian xử lý:** `1.16 giây` | **Số lần Resume phục hồi:** `1`
 
 ---
 

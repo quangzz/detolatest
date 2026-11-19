@@ -42,6 +42,11 @@
    - `GET /api/datasets` & `POST /api/datasets/upload`: Liệt kê và tải lên file Kalodata (`.json`, `.csv`, `.xlsx`, `.har`), giới hạn kích thước `<= 10MB` (`API4:2023`), kiểm tra `ensure_within_directory` (`CWE-22`).
    - `GET /api/jobs` (phân trang `limit <= 50`), `POST /api/jobs` (`CreateJobDto`), `POST /api/jobs/{job_id}/resume`, `GET /api/jobs/{job_id}` và `GET /api/jobs/{job_id}/assets/{filename}`.
    - **CORS Whitelist (`API7:2023`):** Chỉ cho phép `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000` (cấm dùng `*`).
+3. **Tích hợp Chính thức Kalodata Open API v1 (`src/ingestion/kalodata_openapi_client.py`):**
+   - Giao tiếp chuẩn qua `https://www.kalodata.com/openapi/v1` với header `secret-key`.
+   - Hỗ trợ `GET /credit/balance`, `POST /tiktok/category/rank`, `POST /tiktok/creator/rank`, `POST /tiktok/creator/detail`, `POST /tiktok/video/rank`, `POST /tiktok/video/detail` và `POST /tiktok/video/url` (xử lý mã `1054` và `1053`).
+   - Ghi nhận chi tiết số credit ước tính tiêu thụ của từng lời gọi vào `jobs/<job_id>/api_calls.json` và che tự động `secret-key` trong mọi bản ghi log (`API8:2023`).
+   - Whitelist thêm tên miền CDN ký số `https://*.cloudfront.net` trả về từ `/tiktok/video/url` kèm kiểm tra chống IP nội bộ (`API7:2023`).
 2. **Kiến trúc Giao diện Web Chuẩn SEO (`React 19 + Vite + TypeScript + Tailwind CSS v4`):**
    - Cấu trúc `/frontend/src/app/{components/{layout,ui,features},hooks,types}` và `/frontend/src/styles/{fonts.css,theme.css,index.css}` (không dùng `tailwind.config.js`).
    - **Tiêu chuẩn On-Page Technical SEO:** Duy nhất 1 thẻ `<h1>`, phân cấp tuần tự `<h1> -> <h2> -> <h3>`, đầy đủ Semantic Landmarks (`<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`), thẻ `<title>`, `<meta name="description">`, Canonical URL, OpenGraph, JSON-LD `SoftwareApplication`, `robots.txt` và `sitemap.xml`.

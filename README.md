@@ -65,7 +65,22 @@ uv run detola run --dry-run --job-id crash_demo --simulate-crash-after 2
 uv run detola resume crash_demo --dry-run
 ```
 
-### Cách 3: Thu thập Dữ liệu Thực từ Kalodata (7-Day Free Trial) & Chạy Live với Gemini API
+### Cách 3: Tích Hợp Chính Thức Kalodata Open API v1 (`https://www.kalodata.com/openapi/v1`)
+
+Hệ thống tích hợp trực tiếp chuẩn **Kalodata Open API v1** (xác thực qua header `secret-key`, tối ưu hóa credit: `POST /tiktok/creator/rank` lấy tới 100 KOC chỉ tốn **0.1 credit**, và chỉ gọi `/tiktok/creator/detail` + `/tiktok/video/rank` cho nhóm Finalists ở Stage 3):
+
+1. Lấy khóa `secret-key` tại `https://www.kalodata.com/open-center` (mục **Account → API Key**).
+2. Điền `KALODATA_API_KEY=...` vào `.env` **hoặc** bấm nút **`Kalodata Open API Key`** trên thanh Header giao diện `http://localhost:5173/` để nạp vào RAM Backend (hệ thống tự gọi `GET /credit/balance` miễn phí `0 credit` để kiểm tra).
+3. Kéo danh sách KOC thực tế ngay trên giao diện Web Console (khối **Kết Nối Trực Tiếp Kalodata Open API v1**) hoặc qua CLI:
+   ```powershell
+   # Kiểm tra số dư credit (0 credit)
+   uv run detola kalodata-balance
+
+   # Kéo 50 KOC độc lập ngành kem chống nắng tại VN (~0.1 credit)
+   uv run detola sync-kalodata --keyword "kem chống nắng" --followers "10000-200000" --limit 50
+   ```
+
+### Cách 4: Giải pháp thay thế cho tài khoản Kalodata Web Free Trial (Không có Open API Key)
 
 Vì tài khoản **Kalodata Free Trial 7 ngày** khóa nút xuất Excel và giới hạn số lượt bấm vào trang chi tiết KOC mỗi ngày, dự án cung cấp sẵn công cụ thu thập thụ động không tốn quota:
 
