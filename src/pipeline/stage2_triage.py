@@ -68,14 +68,15 @@ def run_stage2_batch_triage(
         if cand.koc_id in saved_stage2:
             triage_map[cand.koc_id] = Stage2ItemScore.model_validate(saved_stage2[cand.koc_id])
             continue
-        global_key = f"{cand.koc_id}:{campaign_sig}"
-        cached_global = global_cache.get("stage2_triage", global_key)
-        if cached_global:
-            item = Stage2ItemScore.model_validate(cached_global)
-            triage_map[cand.koc_id] = item
-            checkpoint.save("stage2", cand.koc_id, item.model_dump())
-            cache_hits += 1
-            continue
+        if not gateway.dry_run:
+            global_key = f"{cand.koc_id}:{campaign_sig}"
+            cached_global = global_cache.get("stage2_triage", global_key)
+            if cached_global:
+                item = Stage2ItemScore.model_validate(cached_global)
+                triage_map[cand.koc_id] = item
+                checkpoint.save("stage2", cand.koc_id, item.model_dump())
+                cache_hits += 1
+                continue
         pending.append(cand)
 
     batch_size = max(1, settings.stage2_batch_size)
@@ -139,7 +140,8 @@ def run_stage2_batch_triage(
             item_score.koc_id = c.koc_id
             triage_map[c.koc_id] = item_score
             checkpoint.save("stage2", c.koc_id, item_score.model_dump())
-            global_cache.set("stage2_triage", f"{c.koc_id}:{campaign_sig}", item_score.model_dump())
+            if not gateway.dry_run:
+                global_cache.set("stage2_triage", f"{c.koc_id}:{campaign_sig}", item_score.model_dump())
 
     # Xếp hạng kết hợp: 45% điểm định lượng Stage 1 + 55% điểm ngữ nghĩa Stage 2
     safe_candidates = [c for c in candidates if triage_map[c.koc_id].brand_safety_pass]
