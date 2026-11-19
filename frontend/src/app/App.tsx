@@ -249,13 +249,13 @@ export function App() {
           </p>
           <div>
             <label htmlFor="gemini-key-input" className="block text-xs font-semibold text-slate-300">
-              Google AI Studio API Key (AIza...)
+              Gemini / Vertex AI Express API Key (AIza... hoặc AQ....)
             </label>
             <input
               id="gemini-key-input"
               type="password"
               autoComplete="off"
-              placeholder="AIzaSy..."
+              placeholder="AIzaSy... hoặc AQ.Ab8RN..."
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none"

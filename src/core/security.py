@@ -25,6 +25,7 @@ ALLOWED_TIKTOK_HOSTS = frozenset(
 # Các mẫu khóa bí mật phổ biến cần che tự động trước khi ghi xuống log/artifact
 _SECRET_PATTERNS = [
     re.compile(r"AIza[0-9A-Za-z_\-]{30,45}"),
+    re.compile(r"AQ\.[0-9A-Za-z._\-]{30,90}"),
     re.compile(r"sk-[A-Za-z0-9_\-]{20,}"),
     re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{16,}"),
     re.compile(r"(?i)(gemini_api_key\s*=\s*)[^\s\"']+"),
@@ -147,11 +148,12 @@ def redact_secrets(raw_text: str) -> str:
         return ""
     masked = str(raw_text)
     masked = _SECRET_PATTERNS[0].sub("AIza[REDACTED_KEY]", masked)
-    masked = _SECRET_PATTERNS[1].sub("sk-[REDACTED_KEY]", masked)
-    masked = _SECRET_PATTERNS[2].sub(r"\1[REDACTED_TOKEN]", masked)
-    masked = _SECRET_PATTERNS[3].sub(r"\1[REDACTED_ENV]", masked)
+    masked = _SECRET_PATTERNS[1].sub("AQ.[REDACTED_VERTEX_KEY]", masked)
+    masked = _SECRET_PATTERNS[2].sub("sk-[REDACTED_KEY]", masked)
+    masked = _SECRET_PATTERNS[3].sub(r"\1[REDACTED_TOKEN]", masked)
     masked = _SECRET_PATTERNS[4].sub(r"\1[REDACTED_ENV]", masked)
-    masked = _SECRET_PATTERNS[5].sub(r"\1[REDACTED_KALO_KEY]", masked)
+    masked = _SECRET_PATTERNS[5].sub(r"\1[REDACTED_ENV]", masked)
+    masked = _SECRET_PATTERNS[6].sub(r"\1[REDACTED_KALO_KEY]", masked)
     return masked
 
 

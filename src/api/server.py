@@ -136,6 +136,9 @@ def get_health() -> Dict[str, Any]:
         "server_time": datetime.now(timezone.utc).isoformat(),
         "gemini_configured": configured,
         "gemini_key_masked": masked,
+        "gemini_provider": (
+            "vertexai" if settings.gemini_use_vertexai else "gemini_api"
+        ),
         "kalodata_configured": kalo_configured,
         "kalodata_key_masked": kalo_masked,
         "kalodata_region": settings.kalodata_region,

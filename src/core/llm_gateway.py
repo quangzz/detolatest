@@ -19,6 +19,13 @@ from src.core.security import SecurityViolationError
 T = TypeVar("T", bound=BaseModel)
 
 
+# Tự động ánh xạ các model 2.5 đã ngừng cấp cho khóa Google AI Studio mới sang dòng 3.5 ổn định
+_DEPRECATED_MODEL_MIGRATION = {
+    "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+    "gemini-2.5-flash": "gemini-3.5-flash-lite",
+}
+
+
 class GeminiGateway:
     """Wrapper tập trung gọi Gemini API với quản lý chi phí, timeout 45s, retry và mô phỏng dry-run."""
 
@@ -34,14 +41,21 @@ class GeminiGateway:
         self._client: Optional[genai.Client] = None
 
         if not self.dry_run:
-            if not self.settings.gemini_api_key or self.settings.gemini_api_key == "your_gemini_api_key_here":
+            api_key = (self.settings.gemini_api_key or "").strip()
+            if not api_key or api_key == "your_gemini_api_key_here":
                 raise ValueError(
                     "Chưa cấu hình GEMINI_API_KEY trong file .env (hoặc thêm cờ --dry-run để kiểm thử luồng offline)."
                 )
+            # Chỉ bật Vertex AI mode khi cấu hình GEMINI_USE_VERTEXAI=true (mặc định dùng Gemini Developer API chuẩn cho cả khóa AIza và AQ.)
+            use_vertex = bool(self.settings.gemini_use_vertexai)
+            self.provider_mode = "vertexai" if use_vertex else "gemini_api"
             self._client = genai.Client(
-                api_key=self.settings.gemini_api_key,
+                vertexai=True if use_vertex else None,
+                api_key=api_key,
                 http_options=types.HttpOptions(timeout=self.settings.llm_timeout_ms),
             )
+        else:
+            self.provider_mode = "dry_run"
 
     @retry(
         reraise=True,
@@ -136,17 +150,27 @@ class GeminiGateway:
                     valid_images += 1
         contents.append(user_prompt)
 
-        gen_config = types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            response_mime_type="application/json",
-            response_schema=response_schema,
-            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
-        )
+        effective_model = _DEPRECATED_MODEL_MIGRATION.get(model_name, model_name)
+        if effective_model != model_name:
+            self.job_logger.info(
+                f"[LLM] Tự động nâng cấp model cũ `{model_name}` -> `{effective_model}` cho tương thích khóa API mới."
+            )
+
+        config_kwargs: dict[str, Any] = {
+            "system_instruction": system_instruction,
+            "temperature": temperature,
+            "max_output_tokens": max_output_tokens,
+            "response_mime_type": "application/json",
+            "response_schema": response_schema,
+        }
+        # Chỉ gửi ThinkingConfig khi thinking_budget > 0 (dòng gemini-3.5-flash-lite không nhận thinking_budget=0)
+        if thinking_budget > 0:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+
+        gen_config = types.GenerateContentConfig(**config_kwargs)
 
         response = self._invoke_gemini(
-            model_name=model_name,
+            model_name=effective_model,
             contents=contents,
             config=gen_config,
         )
@@ -155,17 +179,21 @@ class GeminiGateway:
         usage = getattr(response, "usage_metadata", None)
         prompt_tokens = int(getattr(usage, "prompt_token_count", 0) or 0) if usage else 0
         cached_tokens = int(getattr(usage, "cached_content_token_count", 0) or 0) if usage else 0
+        thinking_tokens = int(getattr(usage, "thoughts_token_count", 0) or 0) if usage else 0
         output_tokens = int(
             (
-                getattr(usage, "response_token_count", None)
-                or getattr(usage, "candidates_token_count", 0)
+                getattr(usage, "candidates_token_count", None)
+                or getattr(usage, "response_token_count", None)
                 or 0
             )
         ) if usage else 0
-        thinking_tokens = int(getattr(usage, "thoughts_token_count", 0) or 0) if usage else 0
+        if output_tokens == 0 and usage is not None:
+            total_t = int(getattr(usage, "total_token_count", 0) or 0)
+            if total_t > prompt_tokens:
+                output_tokens = max(0, total_t - prompt_tokens - thinking_tokens)
 
         cost_usd = calculate_call_cost_usd(
-            model_name=model_name,
+            model_name=effective_model,
             prompt_tokens=prompt_tokens,
             cached_tokens=cached_tokens,
             output_tokens=output_tokens,
@@ -182,7 +210,7 @@ class GeminiGateway:
                 "mode": "live",
                 "stage": stage,
                 "purpose": purpose,
-                "model": model_name,
+                "model": effective_model,
                 "thinking_budget": thinking_budget,
                 "images_attached": valid_images,
                 "prompt_tokens": prompt_tokens,

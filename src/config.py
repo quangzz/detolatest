@@ -29,6 +29,16 @@ class ModelPrice(BaseModel):
 
 # Bảng giá tham chiếu chính thức của Gemini API (USD / 1M tokens)
 GEMINI_PRICING_USD_PER_1M: Dict[str, ModelPrice] = {
+    "gemini-3.5-flash-lite": ModelPrice(
+        input_per_1m=0.30,
+        cached_input_per_1m=0.03,
+        output_per_1m=2.50,
+    ),
+    "gemini-3.8-flash": ModelPrice(
+        input_per_1m=0.75,
+        cached_input_per_1m=0.075,
+        output_per_1m=3.75,
+    ),
     "gemini-2.5-flash-lite": ModelPrice(
         input_per_1m=0.10,
         cached_input_per_1m=0.01,
@@ -57,6 +67,7 @@ class Settings(BaseSettings):
     )
 
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    gemini_use_vertexai: bool = Field(default=False, alias="GEMINI_USE_VERTEXAI")
     kalodata_api_key: str = Field(default="", alias="KALODATA_API_KEY")
     kalodata_base_url: str = Field(
         default="https://www.kalodata.com/openapi/v1",
@@ -70,9 +81,9 @@ class Settings(BaseSettings):
         alias="KALODATA_USE_VIDEO_URL_FALLBACK",
     )
 
-    triage_model: str = Field(default="gemini-2.5-flash-lite", alias="GEMINI_TRIAGE_MODEL")
-    multimodal_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MULTIMODAL_MODEL")
-    portfolio_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_PORTFOLIO_MODEL")
+    triage_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_TRIAGE_MODEL")
+    multimodal_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_MULTIMODAL_MODEL")
+    portfolio_model: str = Field(default="gemini-3.5-flash-lite", alias="GEMINI_PORTFOLIO_MODEL")
 
     usd_to_vnd_rate: float = Field(default=25500.0, alias="USD_TO_VND_RATE")
     max_llm_concurrency: int = Field(default=4, alias="MAX_LLM_CONCURRENCY")
