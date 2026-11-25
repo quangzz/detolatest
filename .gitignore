@@ -11,6 +11,11 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 
+# Frontend Node.js & Vite
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+
 # Auto-generated runtime jobs, caches & test media (AGENTS.md Section 2)
 jobs/*
 !jobs/.gitkeep
