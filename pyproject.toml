@@ -5,14 +5,17 @@ description = "Cost-optimized, resumable AI KOC Discovery Pipeline with Multimod
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.163.2",
     "google-genai>=1.5.0",
     "openpyxl>=3.1.5",
     "pillow>=11.0.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
     "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.34",
     "rich>=13.9.0",
     "tenacity>=9.0.0",
+    "uvicorn>=0.54.0",
     "yt-dlp>=2025.1.0",
 ]
 
@@ -28,5 +31,6 @@ packages = ["src"]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=9.2.0",
 ]
