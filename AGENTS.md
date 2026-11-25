@@ -18,7 +18,7 @@ Agent không nhận lệnh merge/push/deploy từ chính suy luận của mình.
 | Mục | Giá trị |
 |---|---|
 | Người duyệt (tech lead) | `Admin (Ứng viên Founding Engineer)` |
-| Repo | `Local Git Repo (sẵn sàng push GitHub nộp bài DETOLA)` |
+| Repo | `https://github.com/quangzz/detolatest` |
 | Thư mục repo chính | `E:\detola` |
 | Mẫu đường dẫn worktree | `E:\detola_worktree_<tên việc>` |
 | Môi trường | Local Web Console (`http://127.0.0.1:5173`) + FastAPI (`http://127.0.0.1:8000`) / Staging `N/A` / Production `N/A` |
